@@ -39,3 +39,5 @@ coverage.xml
 credentials.json
 .env
 /tracked_people/*
+
+uv.lock
