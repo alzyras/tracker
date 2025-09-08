@@ -1,0 +1,78 @@
+[project]
+name = "uv_app"
+version = "0.1.2"
+description = ""
+readme = "README.md"
+requires-python = "~=3.11"
+dependencies = [
+    "deep-sort-realtime>=1.3.2",
+    "dlib>=20.0.0",
+    "face-recognition>=1.3.0",
+    "fer>=22.5.1",
+    "filterpy>=1.4.5",
+    "gdown>=5.2.0",
+    "mediapipe",
+    "moviepy==1.0.3",
+    "opencv-python>=4.12.0.88",
+    "pydantic-settings>=2.10.1",
+    "python-dotenv>=1.0.1",
+    "scikit-image>=0.25.2",
+    "tensorboard>=2.20.0",
+    "ultralytics>=8.3.194",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+
+[tool.poe.tasks]
+lint = "uv run ruff check . --fix"
+format = "uv run ruff format ."
+x = ["format", "lint"]
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.32.2",
+    "ruff>=0.9.7",
+]
+
+[tool.ruff]
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "ANN002",  # Missing type annotation for args
+  "ANN003",  # Missing type annotation for kwarg
+  "ERA001",  # Commented out code
+  "S104",    # Possible binding to all interfaces
+  "BLE001",  # Do not catch Exception
+  "FBT",     # Bools in arguments
+  "DTZ",     # Datetime timezone
+  "EM",      # f-strings in exception messages
+  "FIX",     # Left out TODO, FIXME, etc.
+  "INT",     # f-string in function execeution before calls
+  "G",       # Logging linting
+  "TD",      # Rules for TODO
+  "E501",    # Line too long
+  "E722",    # Do not use bare except
+  "W505",    # Doc line too long
+  "D100",    # Missing docstring
+  "D101",    # Missing docstring
+  "D102",    # Missing docstring
+  "D103",    # Missing docstring
+  "D104",    # Missing docstring
+  "D105",    # Missing docstring
+  "D106",    # Missing docstring
+  "D107",    # Missing docstring
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+multiline-quotes = "double"
