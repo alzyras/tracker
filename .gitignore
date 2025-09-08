@@ -40,4 +40,4 @@ credentials.json
 .env
 /tracked_people/*
 
-uv.lock
+/uv.lock
