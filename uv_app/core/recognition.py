@@ -41,7 +41,15 @@ class FaceRecognizer:
         
         for person in self.tracked_people + self.lost_people:
             if person.mean_encoding is not None:
+                # Consider all people, but be more lenient with those who have fewer face encodings
                 distance = np.linalg.norm(face_encoding - person.mean_encoding)
+                
+                # Apply a small bonus for people with more face data (more reliable)
+                if len(person.face_encodings) >= 3:
+                    distance *= 0.95  # 5% bonus for people with 3+ faces
+                elif len(person.face_encodings) == 1:
+                    distance *= 1.05  # 5% penalty for people with only 1 face
+                
                 if distance < best_distance:
                     best_distance = distance
                     best_match = person
@@ -66,10 +74,15 @@ class FaceRecognizer:
         
         if best_match and best_distance < MATCH_THRESHOLD:
             # Match found - update existing person
+            if VERBOSE_TRACKING:
+                person_name = best_match.name if best_match.name else f"Person {best_match.track_id}"
+                print(f"✅ Matched face to {person_name} (distance: {best_distance:.3f})")
             self._update_existing_person(best_match, face_encoding, face_img, bbox)
             return best_match
         else:
             # No match - add to candidates
+            if VERBOSE_TRACKING:
+                print(f"🆕 New face detected (best distance: {best_distance:.3f}, threshold: {MATCH_THRESHOLD})")
             self._add_candidate(face_encoding, face_img, bbox)
             return None
     
@@ -115,8 +128,11 @@ class FaceRecognizer:
             # Check if candidate matches any existing person
             best_match, best_distance = self.find_best_match(candidate["encoding"])
             
-            if best_match and best_distance < CANDIDATE_THRESHOLD:
+            if best_match and best_distance < MATCH_THRESHOLD:
                 # Match found - add to existing person
+                if VERBOSE_TRACKING:
+                    person_name = best_match.name if best_match.name else f"Person {best_match.track_id}"
+                    print(f"🔄 Candidate matched to existing {person_name} (distance: {best_distance:.3f})")
                 self._update_existing_person(
                     best_match, 
                     candidate["encoding"], 
@@ -126,6 +142,8 @@ class FaceRecognizer:
                 self.candidate_faces.remove(candidate)
             elif candidate["count"] >= MIN_FRAMES_TO_CONFIRM:
                 # Create new person
+                if VERBOSE_TRACKING:
+                    print(f"👤 Creating new person after {candidate['count']} frames (best distance: {best_distance:.3f})")
                 new_person = self._create_new_person(
                     candidate["encoding"], 
                     candidate["img"], 

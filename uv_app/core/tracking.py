@@ -22,9 +22,23 @@ class PersonTracker:
         self.body_detector = BodyDetector(enable_body, enable_pose) if (enable_body or enable_pose) else None
         self.recognizer = FaceRecognizer() if enable_face else None
         
+        # Initialize plugin system
+        self.plugin_manager = None
+        self._init_plugin_system()
+        
         # Load existing people
         if self.recognizer:
             self.recognizer.load_existing_people()
+    
+    def _init_plugin_system(self):
+        """Initialize the plugin system."""
+        try:
+            from ..plugins.manager import PluginManager
+            self.plugin_manager = PluginManager()
+            print("✅ Plugin system initialized")
+        except ImportError as e:
+            print(f"⚠️  Plugin system not available: {e}")
+            self.plugin_manager = None
     
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -47,6 +61,14 @@ class PersonTracker:
         # Process body detection and pose estimation
         if (self.enable_body or self.enable_pose) and self.body_detector:
             frame = self._process_bodies_and_poses(frame)
+        
+        # Update current state for all visible people
+        self._update_people_current_state()
+        
+        # Process plugins
+        if self.plugin_manager:
+            visible_people = self.get_visible_people()
+            self.plugin_manager.process_people(visible_people, frame)
         
         # Update tracking state
         if self.recognizer:
@@ -80,6 +102,11 @@ class PersonTracker:
             
             if matched_person:
                 current_frame_ids.add(matched_person.track_id)
+                # Update current state
+                matched_person.update_current_state(
+                    face_image=face_img,
+                    face_bbox=bbox
+                )
                 # Calculate certainty and draw label
                 _, distance = self.recognizer.find_best_match(face_encoding)
                 certainty = self.recognizer.get_certainty_percentage(distance)
@@ -110,6 +137,58 @@ class PersonTracker:
                     person.add_body_data(bodies[-1], poses[-1] if poses else None)
         
         return annotated_frame
+    
+    def _update_people_current_state(self) -> None:
+        """Update current state for all tracked people."""
+        if not self.recognizer:
+            return
+        
+        # Mark all people as not visible first
+        for person in self.recognizer.tracked_people:
+            person.mark_not_visible()
+        
+        # Update visible people with current data
+        for person in self.recognizer.tracked_people:
+            if person.is_visible:
+                # Update with current frame data if available
+                pass  # This will be handled by the face/body processing
+    
+    def get_visible_people(self) -> List[TrackedPerson]:
+        """Get list of currently visible people."""
+        if not self.recognizer:
+            return []
+        return [p for p in self.recognizer.tracked_people if p.is_visible]
+    
+    def get_all_people(self) -> List[TrackedPerson]:
+        """Get list of all tracked people (visible and lost)."""
+        if not self.recognizer:
+            return []
+        return self.recognizer.get_all_people()
+    
+    def get_person_by_id(self, track_id: int) -> Optional[TrackedPerson]:
+        """Get person by track ID."""
+        if not self.recognizer:
+            return None
+        return self.recognizer.get_person_by_id(track_id)
+    
+    def register_plugin(self, plugin) -> None:
+        """Register a plugin."""
+        if self.plugin_manager:
+            self.plugin_manager.register_plugin(plugin)
+        else:
+            print("Plugin system not available")
+    
+    def get_plugin_results(self, person_id: int = None, plugin_name: str = None) -> Dict:
+        """Get plugin results."""
+        if not self.plugin_manager:
+            return {}
+        
+        if person_id is not None:
+            return self.plugin_manager.get_results_for_person(person_id)
+        elif plugin_name is not None:
+            return self.plugin_manager.get_results_for_plugin(plugin_name)
+        else:
+            return self.plugin_manager.get_all_results()
     
     def save_all_data(self) -> None:
         """Save all tracked people data."""

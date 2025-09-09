@@ -11,7 +11,7 @@ from config import SAVE_DIR, MAX_FACE_IMAGES
 class TrackedPerson:
     """
     Represents a person being tracked.
-    Stores face encodings, face/body bounding boxes, pose, and snapshots.
+    Stores face encodings, face/body bounding boxes, pose, and current state.
     """
 
     def __init__(self, track_id: int):
@@ -21,52 +21,38 @@ class TrackedPerson:
         self.face_boxes: List[Tuple] = []  # (top, right, bottom, left)
         self.body_boxes: List[Tuple] = []  # (x1, y1, x2, y2)
         self.pose_landmarks: List[Any] = []  # list of pose objects
-        self.current_emotion: Optional[str] = None
-        self.phone_detected: bool = False
-        self.emotion_history: List[str] = []
-        self.phone_history: List[bool] = []
-        self.body_actions: Dict[str, bool] = {}
-        self.snapshot_enabled: bool = True  # Save snapshots of events
-        self.history: List[Dict] = []
         self.missed_frames: int = 0
         self.name: Optional[str] = None
         self.mean_encoding: Optional[np.ndarray] = None
+        
+        # Current state (updated each frame)
+        self.current_face_image: Optional[np.ndarray] = None
+        self.current_body_image: Optional[np.ndarray] = None
+        self.current_pose_landmarks: Optional[Any] = None
+        self.current_face_bbox: Optional[Tuple] = None
+        self.current_body_bbox: Optional[Tuple] = None
+        self.is_visible: bool = False
+        
         self.load_data()
 
-    def update_emotion(self, emotion: str, frame: Optional[np.ndarray] = None) -> None:
-        """Update person's current emotion."""
-        if emotion and emotion != self.current_emotion:
-            self.current_emotion = emotion
-            self.emotion_history.append(emotion)
-            print(f"Person #{self.track_id} is {emotion}")
-            if self.snapshot_enabled and frame is not None:
-                self.save_snapshot(frame, f"emotion_{emotion}")
-
-    def update_phone_status(self, phone_detected: bool, frame: Optional[np.ndarray] = None) -> None:
-        """Update person's phone detection status."""
-        if phone_detected != self.phone_detected:
-            self.phone_detected = phone_detected
-            self.phone_history.append(phone_detected)
-            if phone_detected:
-                print(f"Person #{self.track_id} is looking at their phone")
-                if self.snapshot_enabled and frame is not None:
-                    self.save_snapshot(frame, "phone")
-
-    def update_body_actions(self, actions: Dict[str, bool], frame: Optional[np.ndarray] = None) -> None:
-        """Update person's body actions."""
-        for action, detected in actions.items():
-            if detected and self.body_actions.get(action) != True:
-                self.body_actions[action] = True
-                print(f"Person #{self.track_id} is {action}")
-                if self.snapshot_enabled and frame is not None:
-                    self.save_snapshot(frame, f"action_{action}")
-
-    def save_snapshot(self, frame: np.ndarray, event_name: str) -> None:
-        """Save snapshot to the person's folder with event metadata."""
-        person_dir = os.path.join(SAVE_DIR, f"person_{self.track_id}")
-        os.makedirs(person_dir, exist_ok=True)
-        filename = f"{event_name}_{len(os.listdir(person_dir))}.jpg"
-        cv2.imwrite(os.path.join(person_dir, filename), frame)
+    def update_current_state(self, face_image: Optional[np.ndarray] = None, 
+                           body_image: Optional[np.ndarray] = None,
+                           pose_landmarks: Optional[Any] = None,
+                           face_bbox: Optional[Tuple] = None,
+                           body_bbox: Optional[Tuple] = None) -> None:
+        """Update current state with latest frame data."""
+        if face_image is not None:
+            self.current_face_image = face_image
+        if body_image is not None:
+            self.current_body_image = body_image
+        if pose_landmarks is not None:
+            self.current_pose_landmarks = pose_landmarks
+        if face_bbox is not None:
+            self.current_face_bbox = face_bbox
+        if body_bbox is not None:
+            self.current_body_bbox = body_bbox
+        
+        self.is_visible = True
 
     def save_face_image(self, face_img: np.ndarray) -> None:
         """Save individual face image to person's folder."""
@@ -89,8 +75,8 @@ class TrackedPerson:
         if len(self.face_encodings) >= MAX_FACE_IMAGES:
             return
 
-        # Avoid duplicate encodings (use a more lenient threshold)
-        if all(np.linalg.norm(encoding - f) > 0.4 for f in self.face_encodings):
+        # Avoid duplicate encodings (balanced threshold to prevent false matches but allow same person variations)
+        if all(np.linalg.norm(encoding - f) > 0.3 for f in self.face_encodings):
             self.face_encodings.append(encoding)
             self.face_images.append(face_img)
             if bbox:
@@ -127,10 +113,7 @@ class TrackedPerson:
         data = {
             "track_id": self.track_id,
             "name": self.name,
-            "num_faces": len(self.face_images),
-            "emotion_history": self.emotion_history,
-            "phone_history": self.phone_history,
-            "body_actions": self.body_actions
+            "num_faces": len(self.face_images)
         }
         with open(os.path.join(person_dir, "data.json"), "w") as f:
             json.dump(data, f, indent=2)
@@ -154,9 +137,6 @@ class TrackedPerson:
             with open(json_path, "r") as f:
                 data = json.load(f)
                 self.name = data.get("name", None)
-                self.emotion_history = data.get("emotion_history", [])
-                self.phone_history = data.get("phone_history", [])
-                self.body_actions = data.get("body_actions", {})
             
             self.face_encodings = np.load(encodings_path).tolist()
             self.update_mean_encoding()
@@ -171,3 +151,42 @@ class TrackedPerson:
     def get_new_person_label(self) -> str:
         """Get label for newly detected person."""
         return f"NEW ID {self.track_id}"
+    
+    def get_current_face_image(self) -> Optional[np.ndarray]:
+        """Get current face image."""
+        return self.current_face_image
+    
+    def get_current_body_image(self) -> Optional[np.ndarray]:
+        """Get current body image."""
+        return self.current_body_image
+    
+    def get_current_pose_landmarks(self) -> Optional[Any]:
+        """Get current pose landmarks."""
+        return self.current_pose_landmarks
+    
+    def get_current_face_bbox(self) -> Optional[Tuple]:
+        """Get current face bounding box."""
+        return self.current_face_bbox
+    
+    def get_current_body_bbox(self) -> Optional[Tuple]:
+        """Get current body bounding box."""
+        return self.current_body_bbox
+    
+    def get_current_coordinates(self) -> Dict[str, Optional[Tuple]]:
+        """Get current coordinates for face and body."""
+        return {
+            "face_bbox": self.current_face_bbox,
+            "body_bbox": self.current_body_bbox
+        }
+    
+    def get_all_face_images(self) -> List[np.ndarray]:
+        """Get all stored face images."""
+        return self.face_images.copy()
+    
+    def get_face_count(self) -> int:
+        """Get number of stored face images."""
+        return len(self.face_images)
+    
+    def mark_not_visible(self) -> None:
+        """Mark person as not visible in current frame."""
+        self.is_visible = False
