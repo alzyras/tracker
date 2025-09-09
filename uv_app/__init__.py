@@ -1,9 +1,8 @@
-import logging
+"""UV App - Person tracking application with face recognition and pose analysis."""
 
-LOGGER = logging.getLogger(__name__)
+__version__ = "0.2.0"
 
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] - <%(name)s> - %(message)s",
-    level=logging.INFO,
-    handlers=[logging.StreamHandler()],
-)
+from .logging_config import setup_logging
+from .tracker import run_tracker
+
+__all__ = ["setup_logging", "run_tracker"]
