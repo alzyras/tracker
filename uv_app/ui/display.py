@@ -27,6 +27,7 @@ class FaceDisplayManager:
     @staticmethod
     def draw_face_box_with_emotion(frame: np.ndarray, box: Tuple[int, int, int, int], 
                                   label: str, emotion: Optional[str] = None,
+                                  probability: Optional[float] = None,
                                   color: Tuple[int, int, int] = (0, 255, 0)) -> None:
         """
         Draw bounding box, label, and emotion on frame.
@@ -44,9 +45,38 @@ class FaceDisplayManager:
         
         # Draw emotion below the box if available
         if emotion:
-            emotion_text = f"Emotion: {emotion}"
+            # Normalize and abbreviate to 3 letters
+            em = emotion.lower() if isinstance(emotion, str) else ""
+            # Canonical mapping for abbreviations
+            abbrev_map = {
+                'happiness': 'hap', 'happy': 'hap',
+                'anger': 'ang', 'angry': 'ang',
+                'sadness': 'sad', 'sad': 'sad',
+                'surprise': 'sur', 'surprised': 'sur',
+                'neutral': 'neu',
+                'fear': 'fea',
+                'disgust': 'dis',
+                'contempt': 'con'
+            }
+            abbrev = abbrev_map.get(em, (em[:3] if em else ''))
+            # Emoji mapping (may not render on all systems)
+            emoji_map = {
+                'hap': '😀',
+                'neu': '😐',
+                'sad': '😢',
+                'ang': '😠',
+                'sur': '😮',
+                'fea': '😱',
+                'dis': '🤢',
+                'con': '🙄'
+            }
+            emoji = emoji_map.get(abbrev, '')
+            if probability is not None:
+                emotion_text = f"{emoji} {abbrev} ({probability:.2f})" if emoji else f"{abbrev} ({probability:.2f})"
+            else:
+                emotion_text = f"{emoji} {abbrev}" if emoji else f"{abbrev}"
             cv2.putText(frame, emotion_text, (left, bottom + 20), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
     
     @staticmethod
     def draw_body_box(frame: np.ndarray, box: Tuple[int, int, int, int], 

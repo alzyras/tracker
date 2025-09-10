@@ -15,6 +15,9 @@ class PluginManager:
     def __init__(self):
         self.plugins: List[BasePlugin] = []
         self.results: Dict[str, Dict[str, Any]] = {}
+        # Track last emotion and when it changed to compute durations
+        # person_id -> {"emotion": str, "confidence": float, "changed_ms": int}
+        self._last_emotions: Dict[int, Dict[str, Any]] = {}
         logger.debug("Initialized PluginManager")
     
     def register_plugin(self, plugin: BasePlugin) -> None:
@@ -38,9 +41,8 @@ class PluginManager:
                 continue
             
             for plugin in self.plugins:
-                # Run emotion plugins every frame to log emotions continuously
-                is_emotion_plugin = plugin.name in ("api_emotion", "emotion", "simple_emotion")
-                if is_emotion_plugin or plugin.should_update(current_time_ms):
+                # Respect intervals; API emotion plugin interval set to 300 ms in config
+                if plugin.should_update(current_time_ms):
                     try:
                         result = plugin.process_person(person, frame)
                         self.results[f"{plugin.name}_{person.track_id}"] = {
@@ -50,20 +52,32 @@ class PluginManager:
                             "timestamp": current_time_ms
                         }
                         plugin.update_timestamp(current_time_ms)
-                        # Always log emotions immediately when identified
+                        # Log emotions only when they change; include previous duration
                         if plugin.name in ("api_emotion", "emotion", "simple_emotion") and isinstance(result, dict):
                             emotion = result.get("emotion")
                             confidence = result.get("confidence")
                             if emotion:
-                                # Confidence might be dict for API; extract best if needed
                                 if isinstance(confidence, dict):
                                     confidence = confidence.get(emotion, 0.0)
                                 try:
                                     conf_val = float(confidence) if confidence is not None else 0.0
                                 except Exception:
                                     conf_val = 0.0
-                                person_name = person.name if person.name else f"Person ID {person.track_id}"
-                                logger.info(f"😊 {person_name}: {emotion} ({conf_val:.2f})")
+                                prev = self._last_emotions.get(person.track_id)
+                                if not prev:
+                                    # First observation
+                                    self._last_emotions[person.track_id] = {"emotion": emotion, "confidence": conf_val, "changed_ms": current_time_ms}
+                                    person_name = person.name if person.name else f"Person ID {person.track_id}"
+                                    logger.info(f"😊 {person_name}: {emotion} ({conf_val:.2f})")
+                                else:
+                                    # Only treat as change when the emotion LABEL changes
+                                    changed = prev.get("emotion") != emotion
+                                    if changed:
+                                        duration_ms = max(0, current_time_ms - int(prev.get("changed_ms", current_time_ms)))
+                                        duration_s = duration_ms / 1000.0
+                                        person_name = person.name if person.name else f"Person ID {person.track_id}"
+                                        logger.info(f"😊 {person_name}: {prev.get('emotion')} → {emotion} ({conf_val:.2f}) after {duration_s:.1f}s")
+                                        self._last_emotions[person.track_id] = {"emotion": emotion, "confidence": conf_val, "changed_ms": current_time_ms}
                         # Respect config for generic plugin result logging
                         logger.log_plugin_result(plugin.name, person.track_id, result)
                     except Exception as e:

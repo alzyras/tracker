@@ -167,16 +167,22 @@ class PersonTracker:
                 
                 # Get emotion from plugin results if available
                 emotion = None
+                emotion_conf = None
                 if self.plugin_manager:
                     results = self.plugin_manager.get_results_for_person(matched_person.track_id)
                     # Check for API emotion results first, then fall back to other emotion plugins
                     emotion_result = results.get("api_emotion") or results.get("emotion") or results.get("simple_emotion")
                     if emotion_result and "emotion" in emotion_result:
-                        emotion = emotion_result["emotion"]
+                        emotion = emotion_result.get("emotion")
+                        conf = emotion_result.get("confidence")
+                        if isinstance(conf, dict) and isinstance(emotion, str):
+                            emotion_conf = conf.get(emotion, None)
+                        else:
+                            emotion_conf = conf
                 
                 # Draw face box with emotion if available
                 if emotion:
-                    FaceDisplayManager.draw_face_box_with_emotion(frame, bbox, label, emotion)
+                    FaceDisplayManager.draw_face_box_with_emotion(frame, bbox, label, emotion, emotion_conf)
                 else:
                     FaceDisplayManager.draw_face_box(frame, bbox, label)
                 

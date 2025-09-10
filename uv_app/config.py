@@ -27,7 +27,7 @@ PLUGIN_CONFIG = {
     'emotion_plugin_enabled': False,  # Disable local emotion plugin
     'simple_emotion_enabled': False,  # Disable simple emotion plugin
     'api_emotion_plugin_enabled': True,  # Enable API-based emotion plugin
-    'api_emotion_plugin_interval': 2000,  # milliseconds
+    'api_emotion_plugin_interval': 300,  # milliseconds
     'api_emotion_api_url': 'http://localhost:8080',  # Emotion API URL
     'activity_plugin_enabled': True,
     'activity_plugin_interval': 5000,  # milliseconds
