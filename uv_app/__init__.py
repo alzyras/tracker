@@ -1,9 +1,10 @@
 import logging
+from .core.logging import setup_logging
+from .config import LOGGING_CONFIG, SAVE_DIR
 
-LOGGER = logging.getLogger(__name__)
+# Setup logging with configuration
+logger_manager = setup_logging(LOGGING_CONFIG)
 
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] - <%(name)s> - %(message)s",
-    level=logging.INFO,
-    handlers=[logging.StreamHandler()],
-)
+# Setup file logging with save directory
+logger_manager.setup_file_logging(SAVE_DIR)
+LOGGER = logger_manager.logger

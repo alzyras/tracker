@@ -2,11 +2,15 @@
 
 import cv2
 import numpy as np
+import time
 from typing import List, Tuple, Optional, Dict, Any
 from .detection import FaceDetector, BodyDetector
 from .recognition import FaceRecognizer
 from .person import TrackedPerson
-from config import RESIZE_MAX
+from .logging import get_logger
+from config import RESIZE_MAX, PLUGIN_CONFIG
+
+logger = get_logger()
 
 
 class PersonTracker:
@@ -29,15 +33,57 @@ class PersonTracker:
         # Load existing people
         if self.recognizer:
             self.recognizer.load_existing_people()
+        
+        logger.info("Initialized PersonTracker")
     
     def _init_plugin_system(self):
         """Initialize the plugin system."""
         try:
-            from ..plugins.manager import PluginManager
+            # Try relative import first
+            try:
+                from ..plugins.manager import PluginManager
+                from ..plugins import PLUGIN_REGISTRY
+            except (ImportError, ValueError):
+                # Fallback to absolute import
+                from uv_app.plugins.manager import PluginManager
+                from uv_app.plugins import PLUGIN_REGISTRY
             self.plugin_manager = PluginManager()
-            print("✅ Plugin system initialized")
+            logger.info("✅ Plugin system initialized")
+            
+            # Register the API emotion plugin if enabled
+            try:
+                if PLUGIN_CONFIG.get('api_emotion_plugin_enabled', False):
+                    api_emotion_cls = PLUGIN_REGISTRY.get("api_emotion")
+                    if api_emotion_cls:
+                        api_url = PLUGIN_CONFIG.get('api_emotion_api_url', 'http://localhost:8080')
+                        interval = PLUGIN_CONFIG.get('api_emotion_plugin_interval', 2000)
+                        api_emotion_plugin = api_emotion_cls(api_url=api_url, update_interval_ms=interval)
+                        self.plugin_manager.register_plugin(api_emotion_plugin)
+                        logger.info("✅ API emotion plugin registered")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not register API emotion plugin: {e}")
+            
+            # Register the emotion logger plugin by default
+            try:
+                emotion_logger_cls = PLUGIN_REGISTRY.get("emotion_logger")
+                if emotion_logger_cls:
+                    emotion_logger = emotion_logger_cls()
+                    self.plugin_manager.register_plugin(emotion_logger)
+                    logger.debug("✅ Emotion logger plugin registered")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not register emotion logger plugin: {e}")
+            
+            # Register the person event logger plugin by default
+            try:
+                person_event_logger_cls = PLUGIN_REGISTRY.get("person_event_logger")
+                if person_event_logger_cls:
+                    person_event_logger = person_event_logger_cls()
+                    self.plugin_manager.register_plugin(person_event_logger)
+                    logger.debug("✅ Person event logger plugin registered")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not register person event logger plugin: {e}")
         except ImportError as e:
-            print(f"⚠️  Plugin system not available: {e}")
+            logger.warning(f"⚠️  Plugin system not available: {e}")
             self.plugin_manager = None
     
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
@@ -54,6 +100,11 @@ class PersonTracker:
         frame = self._resize_frame(frame)
         current_frame_ids = set()
         
+        # Reset visibility for all people at the start of the frame
+        if self.recognizer:
+            for person in self.recognizer.tracked_people:
+                person.mark_not_visible()
+
         # Process face detection and recognition
         if self.enable_face and self.face_detector and self.recognizer:
             frame = self._process_faces(frame, current_frame_ids)
@@ -62,17 +113,19 @@ class PersonTracker:
         if (self.enable_body or self.enable_pose) and self.body_detector:
             frame = self._process_bodies_and_poses(frame)
         
-        # Update current state for all visible people
-        self._update_people_current_state()
+        # Current state already updated in face/body processing
         
         # Process plugins
         if self.plugin_manager:
             visible_people = self.get_visible_people()
             self.plugin_manager.process_people(visible_people, frame)
+            
+            # Log emotions every 5 seconds
+            self._log_emotions(visible_people)
         
         # Update tracking state
         if self.recognizer:
-            self.recognizer.update_tracking(current_frame_ids)
+            self.recognizer.update_tracking(current_frame_ids, self.plugin_manager)
         
         return frame
     
@@ -111,7 +164,24 @@ class PersonTracker:
                 _, distance = self.recognizer.find_best_match(face_encoding)
                 certainty = self.recognizer.get_certainty_percentage(distance)
                 label = matched_person.get_display_label(certainty)
-                FaceDisplayManager.draw_face_box(frame, bbox, label)
+                
+                # Get emotion from plugin results if available
+                emotion = None
+                if self.plugin_manager:
+                    results = self.plugin_manager.get_results_for_person(matched_person.track_id)
+                    # Check for API emotion results first, then fall back to other emotion plugins
+                    emotion_result = results.get("api_emotion") or results.get("emotion") or results.get("simple_emotion")
+                    if emotion_result and "emotion" in emotion_result:
+                        emotion = emotion_result["emotion"]
+                
+                # Draw face box with emotion if available
+                if emotion:
+                    FaceDisplayManager.draw_face_box_with_emotion(frame, bbox, label, emotion)
+                else:
+                    FaceDisplayManager.draw_face_box(frame, bbox, label)
+                
+                # Log the match
+                logger.log_person_match(matched_person.name or f"ID {matched_person.track_id}", distance)
         
         # Process candidate faces
         new_people = self.recognizer.process_candidates(frame)
@@ -143,15 +213,55 @@ class PersonTracker:
         if not self.recognizer:
             return
         
-        # Mark all people as not visible first
-        for person in self.recognizer.tracked_people:
-            person.mark_not_visible()
+        # No-op: visibility is managed at frame start and during processing
+        return
+    
+    def _log_emotions(self, people: List[TrackedPerson]) -> None:
+        """Log emotion information for visible people every 5 seconds."""
+        if not self.plugin_manager:
+            return
         
-        # Update visible people with current data
-        for person in self.recognizer.tracked_people:
-            if person.is_visible:
-                # Update with current frame data if available
-                pass  # This will be handled by the face/body processing
+        # Find the emotion logger plugin
+        emotion_logger = None
+        for plugin in self.plugin_manager.plugins:
+            if plugin.name == "emotion_logger":
+                emotion_logger = plugin
+                break
+        
+        if emotion_logger:
+            # Collect emotion data for all visible people
+            current_time_ms = int(time.time() * 1000)
+            
+            # Only log every 5 seconds
+            if hasattr(emotion_logger, 'last_log_time'):
+                last_log = emotion_logger.last_log_time
+            else:
+                last_log = 0
+                
+            if current_time_ms - last_log >= emotion_logger.update_interval_ms:
+                emotion_messages = []
+                for person in people:
+                    # Get emotion from plugin results
+                    results = self.plugin_manager.get_results_for_person(person.track_id)
+                    # Check for API emotion results first, then fall back to other emotion plugins
+                    emotion_result = results.get("api_emotion") or results.get("emotion") or results.get("simple_emotion")
+                    
+                    if emotion_result and "emotion" in emotion_result:
+                        emotion = emotion_result["emotion"]
+                        confidence = emotion_result.get("confidence", 0.0)
+                        
+                        # If confidence is a dict (from API), get the value for the top emotion
+                        if isinstance(confidence, dict):
+                            confidence = confidence.get(emotion, 0.0)
+                        
+                        person_name = person.name if person.name else f"Person ID {person.track_id}"
+                        emotion_messages.append(f"{person_name} is {emotion} ({confidence:.2f})")
+                
+                if emotion_messages:
+                    logger.info(f"😊 Emotions: {', '.join(emotion_messages)}")
+                
+                # Update the logger timestamp
+                emotion_logger.last_log_time = current_time_ms
     
     def get_visible_people(self) -> List[TrackedPerson]:
         """Get list of currently visible people."""
@@ -176,7 +286,7 @@ class PersonTracker:
         if self.plugin_manager:
             self.plugin_manager.register_plugin(plugin)
         else:
-            print("Plugin system not available")
+            logger.warning("Plugin system not available")
     
     def get_plugin_results(self, person_id: int = None, plugin_name: str = None) -> Dict:
         """Get plugin results."""
@@ -195,7 +305,7 @@ class PersonTracker:
         if self.recognizer:
             for person in self.recognizer.get_all_people():
                 person.save_data()
-            print(f"Saved data for {len(self.recognizer.tracked_people)} tracked people and {len(self.recognizer.lost_people)} lost people")
+            logger.info(f"Saved data for {len(self.recognizer.tracked_people)} tracked people and {len(self.recognizer.lost_people)} lost people")
     
     def get_tracked_people(self) -> List[TrackedPerson]:
         """Get list of currently tracked people."""

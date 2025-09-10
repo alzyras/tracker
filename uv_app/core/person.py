@@ -5,7 +5,17 @@ import json
 import numpy as np
 import cv2
 from typing import List, Tuple, Optional, Dict, Any
-from config import SAVE_DIR, MAX_FACE_IMAGES
+from .logging import get_logger
+
+# Import config differently to avoid import issues
+try:
+    from ..config import SAVE_DIR, MAX_FACE_IMAGES
+except ImportError:
+    # Fallback values if config can't be imported
+    SAVE_DIR = "tracked_people"
+    MAX_FACE_IMAGES = 30
+
+logger = get_logger()
 
 
 class TrackedPerson:
@@ -34,6 +44,7 @@ class TrackedPerson:
         self.is_visible: bool = False
         
         self.load_data()
+        logger.debug(f"Initialized TrackedPerson with ID {track_id}")
 
     def update_current_state(self, face_image: Optional[np.ndarray] = None, 
                            body_image: Optional[np.ndarray] = None,
@@ -56,6 +67,11 @@ class TrackedPerson:
 
     def save_face_image(self, face_img: np.ndarray) -> None:
         """Save individual face image to person's folder."""
+        try:
+            from ..config import SAVE_DIR
+        except ImportError:
+            SAVE_DIR = "tracked_people"
+            
         person_dir = os.path.join(SAVE_DIR, f"person_{self.track_id}")
         os.makedirs(person_dir, exist_ok=True)
         
@@ -72,11 +88,16 @@ class TrackedPerson:
 
     def add_face_data(self, encoding: np.ndarray, face_img: np.ndarray, bbox: Optional[Tuple] = None) -> None:
         """Add a new face encoding/image and optional face bbox."""
+        try:
+            from ..config import MAX_FACE_IMAGES
+        except ImportError:
+            MAX_FACE_IMAGES = 30
+            
         if len(self.face_encodings) >= MAX_FACE_IMAGES:
             return
 
-        # Avoid duplicate encodings (balanced threshold to prevent false matches but allow same person variations)
-        if all(np.linalg.norm(encoding - f) > 0.3 for f in self.face_encodings):
+        # Avoid duplicate encodings with a stricter threshold
+        if all(np.linalg.norm(encoding - f) > 0.2 for f in self.face_encodings):
             self.face_encodings.append(encoding)
             self.face_images.append(face_img)
             if bbox:
@@ -107,6 +128,11 @@ class TrackedPerson:
 
     def save_data(self) -> None:
         """Save person to disk."""
+        try:
+            from ..config import SAVE_DIR
+        except ImportError:
+            SAVE_DIR = "tracked_people"
+            
         person_dir = os.path.join(SAVE_DIR, f"person_{self.track_id}")
         os.makedirs(person_dir, exist_ok=True)
 
@@ -129,6 +155,11 @@ class TrackedPerson:
 
     def load_data(self) -> None:
         """Load person data from disk."""
+        try:
+            from ..config import SAVE_DIR
+        except ImportError:
+            SAVE_DIR = "tracked_people"
+            
         person_dir = os.path.join(SAVE_DIR, f"person_{self.track_id}")
         json_path = os.path.join(person_dir, "data.json")
         encodings_path = os.path.join(person_dir, "encodings.npy")

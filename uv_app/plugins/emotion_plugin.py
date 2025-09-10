@@ -4,6 +4,9 @@ import cv2
 import numpy as np
 from typing import Dict, Any
 from .base import FacePlugin
+from ..core.logging import get_logger
+
+logger = get_logger()
 
 
 class EmotionPlugin(FacePlugin):
@@ -21,9 +24,9 @@ class EmotionPlugin(FacePlugin):
             import deepface
             from deepface import DeepFace
             self.emotion_model = DeepFace
-            print("✅ Emotion plugin loaded with DeepFace")
+            logger.info("✅ Emotion plugin loaded with DeepFace")
         except ImportError:
-            print("⚠️  DeepFace not available. Using mock emotion detection.")
+            logger.warning("⚠️ DeepFace not available. Using mock emotion detection.")
             self.emotion_model = None
     
     def process_face(self, face_image: np.ndarray, person) -> Dict[str, Any]:
@@ -52,7 +55,7 @@ class EmotionPlugin(FacePlugin):
             }
             
         except Exception as e:
-            print(f"Error in emotion detection: {e}")
+            logger.error(f"Error in emotion detection: {e}")
             return self._mock_emotion_detection(face_image)
     
     def _mock_emotion_detection(self, face_image: np.ndarray) -> Dict[str, Any]:

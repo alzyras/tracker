@@ -14,6 +14,9 @@ A real-time face, body, and pose tracking application using OpenCV, MediaPipe, a
 - **Certainty percentage** - Shows match confidence for face recognition
 - **Name management** - Assign and display names for recognized people
 - **Face management tool** - View, rename, and organize detected faces
+- **Enhanced recognition accuracy** - Improved algorithms to prevent misidentification
+- **Periodic emotion logging** - Logs person emotions every 5 seconds
+- **API emotion integration** - Shows emotions from external emotion detection service
 
 ## Installation
 
@@ -117,15 +120,23 @@ This tool helps you:
 - **Automatic Saving**: All face images are automatically saved to `tracked_people/person_X/` folders
 - **Persistent IDs**: Person IDs are maintained across application restarts
 
+### Enhanced Features
+
+For detailed information about the enhanced features, see:
+- [Enhanced Features Documentation](README_ENHANCED_FEATURES.md)
+- [Framework Implementation Summary](IMPLEMENTATION_SUMMARY.md)
+- [Framework Usage Guide](README_FRAMEWORK.md)
+- [Simplified Logging System](README_SIMPLIFIED_LOGGING.md)
+
 ## Configuration
 
 Key configuration parameters can be found in `uv_app/config.py`:
 
-- `MATCH_THRESHOLD`: Face recognition matching threshold (0.5)
-- `CANDIDATE_THRESHOLD`: Minimum confidence for new face candidates (0.6)
+- `MATCH_THRESHOLD`: Face recognition matching threshold (0.45 - stricter than default)
+- `CANDIDATE_THRESHOLD`: Minimum confidence for new face candidates (0.4)
 - `MAX_MISSED_FRAMES`: Maximum frames a person can be missed before being considered lost (50)
 - `MIN_FRAMES_TO_CONFIRM`: Minimum frames required to confirm a new person (5)
-- `MAX_FACE_IMAGES`: Maximum face images to store per person (50)
+- `MAX_FACE_IMAGES`: Maximum face images to store per person (30)
 - `SAVE_DIR`: Directory to save tracked people data ("tracked_people")
 
 ## File Structure
@@ -161,6 +172,11 @@ tracked_people/
    ```bash
    uv run python uv_app/cleanup_duplicates.py
    ```
+
+6. **Recognition accuracy issues**: The system has been enhanced with stricter matching thresholds. If you're still having issues:
+   - Clean up person data: `uv run python uv_app/cleanup_person_data.py`
+   - Ensure good lighting and clear face visibility
+   - Allow time for the system to build accurate profiles
 
 ## Dependencies
 

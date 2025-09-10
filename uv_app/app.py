@@ -6,12 +6,17 @@ from typing import Union, Optional
 from core.tracking import PersonTracker
 from ui.display import VideoDisplayManager
 from utils.validators import ConfigValidator
+from core.logging import setup_logging
+from config import LOGGING_CONFIG, SAVE_DIR
 
 
 class TrackerApp:
     """Main application class for the face tracking system."""
     
     def __init__(self, enable_face: bool = True, enable_body: bool = False, enable_pose: bool = False):
+        # Ensure logging is configured early
+        logger_manager = setup_logging(LOGGING_CONFIG)
+        logger_manager.setup_file_logging(SAVE_DIR)
         self.tracker = PersonTracker(enable_face, enable_body, enable_pose)
         self.display = VideoDisplayManager("Face Tracker")
         self.running = False

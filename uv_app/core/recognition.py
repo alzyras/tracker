@@ -4,6 +4,9 @@ import numpy as np
 from typing import List, Tuple, Optional, Dict, Any
 from config import MATCH_THRESHOLD, CANDIDATE_THRESHOLD, MIN_FRAMES_TO_CONFIRM, VERBOSE_TRACKING, MAX_MISSED_FRAMES
 from .person import TrackedPerson
+from .logging import get_logger
+
+logger = get_logger()
 
 
 class FaceRecognizer:
@@ -14,6 +17,7 @@ class FaceRecognizer:
         self.lost_people: List[TrackedPerson] = []
         self.candidate_faces: List[Dict[str, Any]] = []
         self.next_id = 1
+        logger.debug("Initialized FaceRecognizer")
     
     def load_existing_people(self) -> None:
         """Load existing tracked people from storage."""
@@ -27,9 +31,10 @@ class FaceRecognizer:
         self.lost_people = loaded_people
         self.tracked_people = []
         
-        if self.lost_people and VERBOSE_TRACKING:
-            print(f"👥 Loaded {len(self.lost_people)} known people from storage")
-            print("   (They'll be matched if they appear; no 'left' messages on startup)")
+        if self.lost_people:
+            logger.info(f"👥 Loaded {len(self.lost_people)} known people from storage")
+            if VERBOSE_TRACKING:
+                logger.info("   (They'll be matched if they appear; no 'left' messages on startup)")
     
     def find_best_match(self, face_encoding: np.ndarray) -> Tuple[Optional[TrackedPerson], float]:
         """
@@ -46,16 +51,24 @@ class FaceRecognizer:
         
         for person in self.tracked_people + self.lost_people:
             if person.mean_encoding is not None:
-                # Consider all people, but be more lenient with those who have fewer face encodings
+                # Calculate distance between encodings
                 distance = np.linalg.norm(face_encoding - person.mean_encoding)
                 
-                # Apply a small bonus for people with more face data (more reliable)
-                if len(person.face_encodings) >= 3:
+                # Apply weighting based on number of face samples
+                # More samples = more reliable, so we give a slight bonus
+                if len(person.face_encodings) >= 5:
+                    distance *= 0.90  # 10% bonus for people with 5+ faces
+                elif len(person.face_encodings) >= 3:
                     distance *= 0.95  # 5% bonus for people with 3+ faces
                 elif len(person.face_encodings) == 1:
-                    distance *= 1.05  # 5% penalty for people with only 1 face
+                    distance *= 1.10  # 10% penalty for people with only 1 face
                 
-                if distance < best_distance:
+                # Apply stricter threshold for people with fewer samples
+                effective_threshold = MATCH_THRESHOLD
+                if len(person.face_encodings) <= 2:
+                    effective_threshold = MATCH_THRESHOLD * 0.8  # Stricter for less reliable matches
+                
+                if distance < best_distance and distance < effective_threshold:
                     best_distance = distance
                     best_match = person
         
@@ -81,13 +94,13 @@ class FaceRecognizer:
             # Match found - update existing person
             if VERBOSE_TRACKING:
                 person_name = best_match.name if best_match.name else f"Person {best_match.track_id}"
-                print(f"✅ Matched face to {person_name} (distance: {best_distance:.3f})")
+                logger.info(f"✅ Matched face to {person_name} (distance: {best_distance:.3f})")
             self._update_existing_person(best_match, face_encoding, face_img, bbox)
             return best_match
         else:
             # No match - add to candidates
             if VERBOSE_TRACKING:
-                print(f"🆕 New face detected (best distance: {best_distance:.3f}, threshold: {MATCH_THRESHOLD})")
+                logger.info(f"🆕 New face detected (best distance: {best_distance:.3f}, threshold: {MATCH_THRESHOLD})")
             self._add_candidate(face_encoding, face_img, bbox)
             return None
     
@@ -100,7 +113,7 @@ class FaceRecognizer:
             self.tracked_people.append(person)
             if VERBOSE_TRACKING:
                 person_name = person.name if person.name else f"Person {person.track_id}"
-                print(f"📥 {person_name} returned to camera view")
+                logger.info(f"📥 {person_name} returned to camera view")
         
         person.update()
         person.add_face_data(face_encoding, face_img, bbox)
@@ -137,7 +150,7 @@ class FaceRecognizer:
                 # Match found - add to existing person
                 if VERBOSE_TRACKING:
                     person_name = best_match.name if best_match.name else f"Person {best_match.track_id}"
-                    print(f"🔄 Candidate matched to existing {person_name} (distance: {best_distance:.3f})")
+                    logger.info(f"🔄 Candidate matched to existing {person_name} (distance: {best_distance:.3f})")
                 self._update_existing_person(
                     best_match, 
                     candidate["encoding"], 
@@ -148,7 +161,7 @@ class FaceRecognizer:
             elif candidate["count"] >= MIN_FRAMES_TO_CONFIRM:
                 # Create new person
                 if VERBOSE_TRACKING:
-                    print(f"👤 Creating new person after {candidate['count']} frames (best distance: {best_distance:.3f})")
+                    logger.info(f"👤 Creating new person after {candidate['count']} frames (best distance: {best_distance:.3f})")
                 new_person = self._create_new_person(
                     candidate["encoding"], 
                     candidate["img"], 
@@ -175,15 +188,16 @@ class FaceRecognizer:
         self.tracked_people.append(new_person)
         self.next_id += 1
         
-        print(f"New person detected! ID: {new_person.track_id}")
+        logger.info(f"New person detected! ID: {new_person.track_id}")
         return new_person
     
-    def update_tracking(self, current_frame_ids: set) -> None:
+    def update_tracking(self, current_frame_ids: set, plugin_manager=None) -> None:
         """
         Update tracking state based on current frame detections.
         
         Args:
             current_frame_ids: Set of person IDs detected in current frame
+            plugin_manager: Plugin manager for logging exit events
         """
         # Handle lost people
         for person in self.tracked_people[:]:
@@ -194,7 +208,25 @@ class FaceRecognizer:
                     self.lost_people.append(person)
                     if VERBOSE_TRACKING:
                         person_name = person.name if person.name else f"Person {person.track_id}"
-                        print(f"📤 {person_name} left camera view (will be re-detected if they return)")
+                        logger.info(f"📤 {person_name} left camera view (will be re-detected if they return)")
+                    
+                    # Log person exit event
+                    self._log_person_exit(person, plugin_manager)
+    
+    def _log_person_exit(self, person, plugin_manager) -> None:
+        """Log when a person exits the stream."""
+        if not plugin_manager:
+            return
+        
+        # Find the person event logger plugin
+        person_event_logger = None
+        for plugin in plugin_manager.plugins:
+            if plugin.name == "person_event_logger":
+                person_event_logger = plugin
+                break
+        
+        if person_event_logger:
+            person_event_logger.log_person_exit(person)
     
     def get_certainty_percentage(self, distance: float) -> float:
         """Calculate certainty percentage from distance."""
@@ -203,3 +235,10 @@ class FaceRecognizer:
     def get_all_people(self) -> List[TrackedPerson]:
         """Get all tracked and lost people."""
         return self.tracked_people + self.lost_people
+    
+    def get_person_by_id(self, track_id: int) -> Optional[TrackedPerson]:
+        """Get person by track ID."""
+        for person in self.get_all_people():
+            if person.track_id == track_id:
+                return person
+        return None

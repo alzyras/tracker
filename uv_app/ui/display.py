@@ -25,6 +25,30 @@ class FaceDisplayManager:
         cv2.putText(frame, label, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
     
     @staticmethod
+    def draw_face_box_with_emotion(frame: np.ndarray, box: Tuple[int, int, int, int], 
+                                  label: str, emotion: Optional[str] = None,
+                                  color: Tuple[int, int, int] = (0, 255, 0)) -> None:
+        """
+        Draw bounding box, label, and emotion on frame.
+        
+        Args:
+            frame: Input frame
+            box: Face location tuple (top, right, bottom, left)
+            label: Text label to display
+            emotion: Emotion text to display below the box
+            color: BGR color tuple
+        """
+        top, right, bottom, left = box
+        cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+        cv2.putText(frame, label, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        
+        # Draw emotion below the box if available
+        if emotion:
+            emotion_text = f"Emotion: {emotion}"
+            cv2.putText(frame, emotion_text, (left, bottom + 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+    
+    @staticmethod
     def draw_body_box(frame: np.ndarray, box: Tuple[int, int, int, int], 
                      label: Optional[str] = None, color: Tuple[int, int, int] = (255, 0, 0)) -> None:
         """

@@ -5,6 +5,9 @@ import face_recognition
 import numpy as np
 from typing import List, Tuple, Optional
 from config import RESIZE_MAX
+from .logging import get_logger
+
+logger = get_logger()
 
 
 class FaceDetector:
@@ -13,6 +16,7 @@ class FaceDetector:
     def __init__(self):
         self.face_locations = []
         self.face_encodings = []
+        logger.debug("Initialized FaceDetector")
     
     def detect_faces(self, frame: np.ndarray) -> Tuple[List[Tuple], List[np.ndarray]]:
         """
@@ -29,6 +33,7 @@ class FaceDetector:
         
         # Detect face locations
         self.face_locations = face_recognition.face_locations(rgb_frame)
+        logger.log_detection("faces", len(self.face_locations))
         
         # Extract face encodings
         self.face_encodings = face_recognition.face_encodings(rgb_frame, self.face_locations)
@@ -57,6 +62,7 @@ class BodyDetector:
         self.enable_body = enable_body
         self.enable_pose = enable_pose
         self._init_mediapipe()
+        logger.debug(f"Initialized BodyDetector (body: {enable_body}, pose: {enable_pose})")
     
     def _init_mediapipe(self):
         """Initialize MediaPipe pose model."""
@@ -68,8 +74,9 @@ class BodyDetector:
                 static_image_mode=False, 
                 min_detection_confidence=0.5
             )
+            logger.info("✅ MediaPipe pose model loaded successfully")
         except ImportError:
-            print("MediaPipe not available. Body detection disabled.")
+            logger.warning("⚠️ MediaPipe not available. Body detection disabled.")
             self.pose_model = None
     
     def detect_bodies_and_poses(self, frame: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List]:
@@ -120,4 +127,6 @@ class BodyDetector:
                 
                 poses.append(results.pose_landmarks)
         
+        logger.log_detection("bodies", len(bodies))
+        logger.log_detection("poses", len(poses))
         return annotated, bodies, poses
