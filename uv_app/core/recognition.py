@@ -2,7 +2,7 @@
 
 import numpy as np
 from typing import List, Tuple, Optional, Dict, Any
-from config import MATCH_THRESHOLD, CANDIDATE_THRESHOLD, MIN_FRAMES_TO_CONFIRM, VERBOSE_TRACKING
+from config import MATCH_THRESHOLD, CANDIDATE_THRESHOLD, MIN_FRAMES_TO_CONFIRM, VERBOSE_TRACKING, MAX_MISSED_FRAMES
 from .person import TrackedPerson
 
 
@@ -20,11 +20,16 @@ class FaceRecognizer:
         from .storage import PersonStorage
         
         storage = PersonStorage()
-        self.tracked_people, self.next_id = storage.load_all_people()
+        loaded_people, self.next_id = storage.load_all_people()
         
-        if self.tracked_people and VERBOSE_TRACKING:
-            print(f"👥 Loaded {len(self.tracked_people)} previously tracked people")
-            print("   (They will be marked as 'left camera view' if not currently visible)")
+        # Treat loaded people as not currently visible in this new session
+        # so they don't accumulate missed frames and trigger a false 'left' event
+        self.lost_people = loaded_people
+        self.tracked_people = []
+        
+        if self.lost_people and VERBOSE_TRACKING:
+            print(f"👥 Loaded {len(self.lost_people)} known people from storage")
+            print("   (They'll be matched if they appear; no 'left' messages on startup)")
     
     def find_best_match(self, face_encoding: np.ndarray) -> Tuple[Optional[TrackedPerson], float]:
         """
@@ -184,7 +189,7 @@ class FaceRecognizer:
         for person in self.tracked_people[:]:
             if person.track_id not in current_frame_ids:
                 person.missed_frames += 1
-                if person.missed_frames > 50:  # MAX_MISSED_FRAMES
+                if person.missed_frames > MAX_MISSED_FRAMES:
                     self.tracked_people.remove(person)
                     self.lost_people.append(person)
                     if VERBOSE_TRACKING:
