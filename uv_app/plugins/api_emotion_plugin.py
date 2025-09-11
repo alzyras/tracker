@@ -72,7 +72,7 @@ class APIEmotionPlugin(FacePlugin):
                         "method": "api_emotion_detection"
                     }
                     
-                    logger.info(f"✅ Emotion detected for person {person.track_id}: {top_emotion} ({confidence:.2f})")
+                    # Return emotion data without logging (plugin manager handles logging)
                     return emotion_data
                 else:
                     # No faces detected in the image

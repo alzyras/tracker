@@ -99,7 +99,6 @@ This tool allows you to:
 - List all tracked people with their IDs and names
 - Rename people for easier identification
 - View face images for each person
-- Organize your tracked people database
 
 ### Cleaning Up Duplicates
 
@@ -121,13 +120,41 @@ This tool helps you:
 - **Automatic Saving**: All face images are automatically saved to `tracked_people/person_X/` folders
 - **Persistent IDs**: Person IDs are maintained across application restarts
 
+### Activity Recognition with SmolVLM
+
+The system includes integration with the SmolVLM API for detailed activity recognition. The SmolVLM plugin:
+
+- Captures body images of detected people
+- Sends them to the SmolVLM API for natural language descriptions of activities
+- Logs what each person is doing in real-time
+- Works asynchronously to avoid blocking the main tracking thread
+
+To use the SmolVLM plugin:
+
+1. Start the SmolVLM API server on `http://localhost:9000`
+2. Enable the plugin in `uv_app/config.py`:
+   ```python
+   PLUGIN_CONFIG = {
+       # ... other settings
+       'smolvlm_plugin_enabled': True,
+       'smolvlm_plugin_interval': 5000,  # milliseconds (5 seconds)
+       'smolvlm_api_url': 'http://localhost:9000/describe',
+   }
+   ```
+3. Run the application with body detection enabled:
+   ```bash
+   uv run python uv_app/app.py --enable-body
+   ```
+
+Example log output:
+```
+Person ID 1 is doing: The person is sitting at a desk working on a computer
+Person ID 2 is doing: The person is walking across the room
+```
+
 ### Enhanced Features
 
 For detailed information about the enhanced features, see:
-- [Enhanced Features Documentation](README_ENHANCED_FEATURES.md)
-- [Framework Implementation Summary](IMPLEMENTATION_SUMMARY.md)
-- [Framework Usage Guide](README_FRAMEWORK.md)
-- [Simplified Logging System](README_SIMPLIFIED_LOGGING.md)
 - [Plugin System](README_PLUGIN_SYSTEM.md)
 
 ## Configuration
@@ -137,7 +164,7 @@ Key configuration parameters can be found in `uv_app/config.py`:
 - `MATCH_THRESHOLD`: Face recognition matching threshold (0.45 - stricter than default)
 - `CANDIDATE_THRESHOLD`: Minimum confidence for new face candidates (0.4)
 - `MAX_MISSED_FRAMES`: Maximum frames a person can be missed before being considered lost (50)
-- `MIN_FRAMES_TO_CONFIRM`: Minimum frames required to confirm a new person (5)
+- `MIN_FRAMES_TO_CONFIRM`: Minimum frames required to confirm a new person (30)
 - `MAX_FACE_IMAGES`: Maximum face images to store per person (30)
 - `SAVE_DIR`: Directory to save tracked people data ("tracked_people")
 
@@ -149,7 +176,6 @@ tracked_people/
 │   ├── data.json          # Person metadata (ID, name, etc.)
 │   ├── encodings.npy      # Face encodings for recognition
 │   ├── face_1.jpg         # Face images
-│   ├── face_2.jpg
 │   └── ...
 ├── person_2/
 │   └── ...
