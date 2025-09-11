@@ -4,7 +4,13 @@ import time
 from typing import List, Dict, Any
 import numpy as np
 from .base import BasePlugin
-from ..core.logging import get_logger
+
+# Fix the import issue by using absolute import
+try:
+    from ..core.logging import get_logger
+except (ImportError, ValueError):
+    # Fallback to absolute import
+    from uv_app.core.logging import get_logger
 
 logger = get_logger()
 

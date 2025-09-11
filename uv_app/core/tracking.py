@@ -159,48 +159,49 @@ class PersonTracker:
         
         # Process each detected face
         for i, (top, right, bottom, left) in enumerate(face_locations):
-            face_encoding = face_encodings[i]
-            face_img = self.face_detector.get_face_roi(frame, (top, right, bottom, left))
-            bbox = (top, right, bottom, left)
-            
-            # Try to match with existing person
-            matched_person = self.recognizer.process_face(face_encoding, face_img, bbox, frame)
-            
-            if matched_person:
-                current_frame_ids.add(matched_person.track_id)
-                # Update current state
-                matched_person.update_current_state(
-                    face_image=face_img,
-                    face_bbox=bbox
-                )
-                # Calculate certainty and draw label
-                _, distance = self.recognizer.find_best_match(face_encoding)
-                certainty = self.recognizer.get_certainty_percentage(distance)
-                label = matched_person.get_display_label(certainty)
+            if i < len(face_encodings):  # Ensure we have a corresponding encoding
+                face_encoding = face_encodings[i]
+                face_img = self.face_detector.get_face_roi(frame, (top, right, bottom, left))
+                bbox = (top, right, bottom, left)
                 
-                # Get emotion from plugin results if available
-                emotion = None
-                emotion_conf = None
-                if self.plugin_manager:
-                    results = self.plugin_manager.get_results_for_person(matched_person.track_id)
-                    # Check for API emotion results first, then fall back to other emotion plugins
-                    emotion_result = results.get("api_emotion") or results.get("emotion") or results.get("simple_emotion")
-                    if emotion_result and "emotion" in emotion_result:
-                        emotion = emotion_result.get("emotion")
-                        conf = emotion_result.get("confidence")
-                        if isinstance(conf, dict) and isinstance(emotion, str):
-                            emotion_conf = conf.get(emotion, None)
-                        else:
-                            emotion_conf = conf
+                # Try to match with existing person
+                matched_person = self.recognizer.process_face(face_encoding, face_img, bbox, frame)
                 
-                # Draw face box with emotion if available
-                if emotion:
-                    FaceDisplayManager.draw_face_box_with_emotion(frame, bbox, label, emotion, emotion_conf)
-                else:
-                    FaceDisplayManager.draw_face_box(frame, bbox, label)
-                
-                # Log the match
-                logger.log_person_match(matched_person.name or f"ID {matched_person.track_id}", distance)
+                if matched_person:
+                    current_frame_ids.add(matched_person.track_id)
+                    # Update current state
+                    matched_person.update_current_state(
+                        face_image=face_img,
+                        face_bbox=bbox
+                    )
+                    # Calculate certainty and draw label
+                    _, distance = self.recognizer.find_best_match(face_encoding)
+                    certainty = self.recognizer.get_certainty_percentage(distance)
+                    label = matched_person.get_display_label(certainty)
+                    
+                    # Get emotion from plugin results if available
+                    emotion = None
+                    emotion_conf = None
+                    if self.plugin_manager:
+                        results = self.plugin_manager.get_results_for_person(matched_person.track_id)
+                        # Check for API emotion results first, then fall back to other emotion plugins
+                        emotion_result = results.get("api_emotion") or results.get("emotion") or results.get("simple_emotion")
+                        if emotion_result and "emotion" in emotion_result:
+                            emotion = emotion_result.get("emotion")
+                            conf = emotion_result.get("confidence")
+                            if isinstance(conf, dict) and isinstance(emotion, str):
+                                emotion_conf = conf.get(emotion, None)
+                            else:
+                                emotion_conf = conf
+                    
+                    # Draw face box with emotion if available
+                    if emotion:
+                        FaceDisplayManager.draw_face_box_with_emotion(frame, bbox, label, emotion, emotion_conf)
+                    else:
+                        FaceDisplayManager.draw_face_box(frame, bbox, label)
+                    
+                    # Log the match
+                    logger.log_person_match(matched_person.name or f"ID {matched_person.track_id}", distance)
         
         # Process candidate faces
         new_people = self.recognizer.process_candidates(frame)
@@ -220,9 +221,9 @@ class PersonTracker:
         annotated_frame, bodies, poses = self.body_detector.detect_bodies_and_poses(frame)
         
         # Assign body data to tracked people
-        if self.recognizer and bodies:
+        if self.recognizer and len(bodies) > 0:
             for person in self.recognizer.tracked_people:
-                if bodies:
+                if len(bodies) > 0:
                     # Extract body image ROI
                     body_bbox = bodies[-1]
                     from .detection import get_body_roi
@@ -232,7 +233,7 @@ class PersonTracker:
                         body_bbox=body_bbox
                     )
                     # Also add to stored body data
-                    person.add_body_data(body_bbox, poses[-1] if poses else None, body_img)
+                    person.add_body_data(body_bbox, poses[-1] if len(poses) > 0 else None, body_img)
         
         return annotated_frame
     

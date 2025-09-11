@@ -9,7 +9,13 @@ import time
 import threading
 from typing import Dict, Any
 from .base import BodyPlugin
-from ..core.logging import get_logger
+
+# Fix the import issue by using absolute import
+try:
+    from ..core.logging import get_logger
+except (ImportError, ValueError):
+    # Fallback to absolute import
+    from uv_app.core.logging import get_logger
 
 logger = get_logger()
 

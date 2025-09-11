@@ -97,7 +97,13 @@ class TrackedPerson:
             return
 
         # Avoid duplicate encodings with a stricter threshold
-        if all(np.linalg.norm(encoding - f) > 0.2 for f in self.face_encodings):
+        is_duplicate = False
+        for existing_encoding in self.face_encodings:
+            if np.linalg.norm(encoding - existing_encoding) <= 0.2:
+                is_duplicate = True
+                break
+                
+        if not is_duplicate:
             self.face_encodings.append(encoding)
             self.face_images.append(face_img)
             if bbox:

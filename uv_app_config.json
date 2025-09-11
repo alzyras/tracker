@@ -1,0 +1,53 @@
+{
+  "plugin_settings": {
+    "emotion": {
+      "enabled": false,
+      "update_interval_ms": 2000
+    },
+    "simple_emotion": {
+      "enabled": false
+    },
+    "api_emotion": {
+      "enabled": false
+    },
+    "activity": {
+      "enabled": false
+    },
+    "face_image": {
+      "enabled": false
+    },
+    "body_analysis": {
+      "enabled": false
+    },
+    "pose_analysis": {
+      "enabled": false
+    },
+    "emotion_logger": {
+      "update_interval_ms": 5000,
+      "enabled": true
+    },
+    "person_event_logger": {
+      "update_interval_ms": 1000,
+      "enabled": true
+    },
+    "smolvlm_activity": {
+      "enabled": false
+    }
+  },
+  "ui_settings": {
+    "display_mode": "streamlit",
+    "box_color": "#618c61",
+    "font_size": 12,
+    "font_color": "#FFFFFF",
+    "border_width": 1,
+    "box_style": "Dashed",
+    "font_family": "Arial",
+    "bg_color": "#0E1117",
+    "opacity": 0.8,
+    "show_fps": true,
+    "frame_width": 1280,
+    "frame_height": 960,
+    "show_preview": true,
+    "preview_interval": 100
+  }
+}

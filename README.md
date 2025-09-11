@@ -18,6 +18,7 @@ A real-time face, body, and pose tracking application using OpenCV, MediaPipe, a
 - **Periodic emotion logging** - Logs person emotions every 5 seconds
 - **API emotion integration** - Shows emotions from external emotion detection service
 - **Activity recognition with SmolVLM** - Uses SmolVLM API to describe what people are doing
+- **Streamlit configurator** - Beautiful, dynamic configuration interface for plugins and UI settings
 
 ## Installation
 
@@ -151,6 +152,47 @@ Example log output:
 Person ID 1 is doing: The person is sitting at a desk working on a computer
 Person ID 2 is doing: The person is walking across the room
 ```
+
+### Streamlit Configurator
+
+The project includes a beautiful and dynamic configuration interface built with Streamlit. The configurator allows you to:
+
+- Enable/disable plugins with a simple toggle
+- Configure plugin-specific settings that adapt to each plugin's requirements
+- Customize UI elements including colors, fonts, and sizes
+- Choose between different display modes (Streamlit, OpenCV window, or none)
+- Save and load your configuration settings
+
+How it works:
+The Streamlit configurator saves your settings to a `uv_app_config.json` file in the project root directory. The main UV App automatically loads these settings when it starts, applying your configuration to the tracking system.
+
+To use the Streamlit configurator:
+
+1. Navigate to the Streamlit app directory:
+   ```bash
+   cd streamlit_app
+   ```
+
+2. Install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run the Streamlit app:
+   ```bash
+   streamlit run streamlit_configurator.py
+   ```
+
+4. Access the configurator at `http://localhost:8501`
+
+5. Configure your plugins and UI settings, then click "Save Configuration"
+
+6. Run the main UV App, which will automatically use your saved settings:
+   ```bash
+   uv run python uv_app/app.py
+   ```
+
+The configurator will automatically save your settings to `uv_app_config.json` in the project root directory. You can also manually edit this file if needed.
 
 ### Enhanced Features
 

@@ -1,0 +1,42 @@
+{
+  "plugin_settings": {
+    "emotion": {
+      "enabled": true,
+      "update_interval_ms": 2000
+    },
+    "api_emotion": {
+      "enabled": true,
+      "update_interval_ms": 300,
+      "api_url": "http://localhost:8500"
+    },
+    "smolvlm_activity": {
+      "enabled": true,
+      "update_interval_ms": 5000,
+      "api_url": "http://localhost:9000/describe"
+    },
+    "emotion_logger": {
+      "enabled": true,
+      "update_interval_ms": 5000
+    },
+    "person_event_logger": {
+      "enabled": true,
+      "update_interval_ms": 1000
+    }
+  },
+  "ui_settings": {
+    "display_mode": "opencv",
+    "box_color": "#00FF00",
+    "font_size": 12,
+    "font_color": "#FFFFFF",
+    "border_width": 2,
+    "box_style": "Solid",
+    "font_family": "Arial",
+    "bg_color": "#0E1117",
+    "opacity": 0.8,
+    "show_fps": true,
+    "frame_width": 640,
+    "frame_height": 480,
+    "show_preview": true,
+    "preview_interval": 100
+  }
+}

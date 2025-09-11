@@ -137,12 +137,13 @@ class BodyDetector:
                     h, w, _ = frame.shape
                     xs = [lm.x * w for lm in results.pose_landmarks.landmark]
                     ys = [lm.y * h for lm in results.pose_landmarks.landmark]
-                    x1, y1 = int(min(xs)), int(min(ys))
-                    x2, y2 = int(max(xs)), int(max(ys))
-                    bodies.append((x1, y1, x2, y2))
-                    
-                    # Draw bounding box
-                    cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                    if xs and ys:  # Make sure we have landmark data
+                        x1, y1 = int(min(xs)), int(min(ys))
+                        x2, y2 = int(max(xs)), int(max(ys))
+                        bodies.append((x1, y1, x2, y2))
+                        
+                        # Draw bounding box
+                        cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
                 
                 poses.append(results.pose_landmarks)
         
