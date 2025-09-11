@@ -10,6 +10,7 @@ from .body_analysis_plugin import BodyAnalysisPlugin
 from .pose_analysis_plugin import PoseAnalysisPlugin
 from .emotion_logger_plugin import EmotionLoggerPlugin
 from .person_event_logger import PersonEventLogger
+from .smolvlm_plugin import SmolVLMPlugin
 
 # Plugin registry - all available plugins
 PLUGIN_REGISTRY = {
@@ -21,7 +22,8 @@ PLUGIN_REGISTRY = {
     "body_analysis": BodyAnalysisPlugin,
     "pose_analysis": PoseAnalysisPlugin,
     "emotion_logger": EmotionLoggerPlugin,
-    "person_event_logger": PersonEventLogger
+    "person_event_logger": PersonEventLogger,
+    "smolvlm_activity": SmolVLMPlugin
 }
 
 __all__ = [
@@ -30,5 +32,6 @@ __all__ = [
     "EmotionPlugin", "SimpleEmotionPlugin", "APIEmotionPlugin",
     "ActivityPlugin", "FaceImagePlugin",
     "BodyAnalysisPlugin", "PoseAnalysisPlugin", 
-    "EmotionLoggerPlugin", "PersonEventLogger"
+    "EmotionLoggerPlugin", "PersonEventLogger",
+    "SmolVLMPlugin"
 ]

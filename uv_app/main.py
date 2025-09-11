@@ -14,7 +14,7 @@ if __name__ == "__main__":
     
     app = TrackerApp(
         enable_face=True,     # enable face detection
-        enable_body=False,    # disable full-body bounding box
+        enable_body=True,    # disable full-body bounding box
         enable_pose=False     # disable pose detection
     )
     

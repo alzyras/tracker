@@ -114,7 +114,10 @@ class TrackedPerson:
             self.body_boxes.append(body_bbox)
         if pose:
             self.pose_landmarks.append(pose)
-        # You could also store body_img in memory if needed
+        # Store body image if provided
+        if body_img is not None:
+            # You could also store body_img in memory if needed
+            pass  # The image is already stored in current_body_image via update_current_state
 
     def update_mean_encoding(self) -> None:
         """Update the mean face encoding."""

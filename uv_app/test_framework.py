@@ -136,6 +136,18 @@ def test_plugin_system():
             plugin_manager.register_plugin(person_event_logger)
             print("✅ Registered person event logger plugin")
     
+    # Register SmolVLM plugin if enabled
+    if PLUGIN_CONFIG.get('smolvlm_plugin_enabled', True):
+        smolvlm_plugin_cls = PLUGIN_REGISTRY.get("smolvlm_activity")
+        if smolvlm_plugin_cls:
+            api_url = PLUGIN_CONFIG.get('smolvlm_api_url', 'http://localhost:9000/describe')
+            smolvlm_plugin = smolvlm_plugin_cls(
+                api_url=api_url,
+                update_interval_ms=PLUGIN_CONFIG.get('smolvlm_plugin_interval', 2000)
+            )
+            plugin_manager.register_plugin(smolvlm_plugin)
+            print("✅ Registered SmolVLM activity plugin")
+    
     # Check plugin status
     status = plugin_manager.get_plugin_status()
     print(f"Plugin status: {status}")

@@ -137,6 +137,19 @@ face_count = person.get_face_count()
 3. **PosePlugin**: Processes pose landmarks
 4. **BasePlugin**: Custom plugin base class
 
+### Available Plugins
+
+- `emotion`: Local emotion detection (requires DeepFace)
+- `simple_emotion`: Simple emotion detection based on image analysis
+- `api_emotion`: External API-based emotion detection
+- `activity`: Local activity detection
+- `face_image`: Face image storage plugin
+- `body_analysis`: Body analysis plugin
+- `pose_analysis`: Pose analysis plugin
+- `emotion_logger`: Logs emotion changes
+- `person_event_logger`: Logs person tracking events
+- `smolvlm_activity`: SmolVLM-based activity detection (external API)
+
 ### Creating a Plugin
 
 ```python
@@ -171,6 +184,42 @@ emotion_api = create_emotion_api_plugin(
 )
 
 tracker.register_plugin(emotion_api)
+```
+
+### SmolVLM Activity Detection Plugin
+
+The SmolVLM plugin automatically captures body images of detected people and sends them to the SmolVLM API for natural language descriptions of activities. 
+
+**Key Features:**
+- Sends body shots every 5 seconds to the SmolVLM API
+- Logs activities in the format: `Person ID X is doing: {activity description}`
+- Works asynchronously to avoid blocking the main tracking thread
+- Extracts clean descriptions from the API response
+
+**Example Log Output:**
+```
+Person ID 1 is doing: The person is sitting at a desk working on a computer
+Person ID 2 is doing: The person is walking across the room
+Person ID 1 is doing: The person is typing on a keyboard
+```
+
+```python
+from uv_app.plugins.smolvlm_plugin import create_smolvlm_plugin
+
+# Create a custom SmolVLM plugin with specific settings
+smolvlm_plugin = create_smolvlm_plugin(
+    api_url="http://your-smolvlm-server:9000/describe",
+    update_interval_ms=5000  # 5 seconds (default)
+)
+
+# Register with tracker
+tracker.register_plugin(smolvlm_plugin)
+
+# Access results
+results = tracker.get_plugin_results(plugin_name="smolvlm_activity")
+for person_id, result in results.items():
+    if "description" in result:
+        print(f"Person {person_id} is doing: {result['description']}")
 ```
 
 ## 📋 **Available Methods**
@@ -346,6 +395,27 @@ class MyPlugin(FacePlugin):
         pass
 ```
 
+### SmolVLM Plugin Example
+
+```python
+from uv_app.plugins.smolvlm_plugin import create_smolvlm_plugin
+
+# Create a custom SmolVLM plugin with specific settings
+smolvlm_plugin = create_smolvlm_plugin(
+    api_url="http://your-smolvlm-server:9000/describe",
+    update_interval_ms=3000  # Update every 3 seconds
+)
+
+# Register with tracker
+tracker.register_plugin(smolvlm_plugin)
+
+# Access results
+results = tracker.get_plugin_results(plugin_name="smolvlm_activity")
+for person_id, result in results.items():
+    if "description" in result:
+        print(f"Person {person_id} is doing: {result['description']}")
+```
+
 ## 🎯 **Use Cases**
 
 - **Security Systems**: Person detection and tracking
@@ -353,6 +423,7 @@ class MyPlugin(FacePlugin):
 - **Access Control**: Face recognition for authentication
 - **Research**: Data collection for ML training
 - **Monitoring**: Real-time person monitoring
+- **Activity Recognition**: Using SmolVLM for detailed activity description every 5 seconds
 - **Integration**: Embed in larger applications
 
 This framework provides a solid foundation for any person tracking application while keeping the core clean and extensible through the plugin system.

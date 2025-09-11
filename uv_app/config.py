@@ -6,7 +6,7 @@ import os
 SAVE_DIR = "tracked_people"  # Directory to save and load tracked people data
 MAX_MISSED_FRAMES = 50       # Frames a person can be "lost" before forgotten
 MAX_FACE_IMAGES = 30         # Max face images to store per person
-MIN_FRAMES_TO_CONFIRM = 5    # Frames required to confirm a new person
+MIN_FRAMES_TO_CONFIRM = 30   # Frames required to confirm a new person (increased from 5)
 MATCH_THRESHOLD = 0.45       # Face recognition match threshold (lower = stricter)
 CANDIDATE_THRESHOLD = 0.4    # Threshold for considering as candidate (stricter than match)
 RESIZE_MAX = 640             # Max frame size for faster processing
@@ -28,13 +28,16 @@ PLUGIN_CONFIG = {
     'simple_emotion_enabled': False,  # Disable simple emotion plugin
     'api_emotion_plugin_enabled': True,  # Enable API-based emotion plugin
     'api_emotion_plugin_interval': 300,  # milliseconds
-    'api_emotion_api_url': 'http://localhost:8080',  # Emotion API URL
+    'api_emotion_api_url': 'http://localhost:8500',  # Emotion API URL
     'activity_plugin_enabled': True,
     'activity_plugin_interval': 5000,  # milliseconds
     'emotion_logger_enabled': True,
     'emotion_logger_interval': 5000,  # milliseconds (5 seconds)
     'person_event_logger_enabled': True,
     'person_event_logger_interval': 1000,  # milliseconds (1 second)
+    'smolvlm_plugin_enabled': True,  # Enable SmolVLM activity detection plugin
+    'smolvlm_plugin_interval': 5000,  # milliseconds (5 seconds)
+    'smolvlm_api_url': 'http://localhost:9000/describe',  # SmolVLM API URL
 }
 # ----------------------------------------
 

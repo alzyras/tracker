@@ -17,6 +17,7 @@ A real-time face, body, and pose tracking application using OpenCV, MediaPipe, a
 - **Enhanced recognition accuracy** - Improved algorithms to prevent misidentification
 - **Periodic emotion logging** - Logs person emotions every 5 seconds
 - **API emotion integration** - Shows emotions from external emotion detection service
+- **Activity recognition with SmolVLM** - Uses SmolVLM API to describe what people are doing
 
 ## Installation
 
@@ -127,6 +128,7 @@ For detailed information about the enhanced features, see:
 - [Framework Implementation Summary](IMPLEMENTATION_SUMMARY.md)
 - [Framework Usage Guide](README_FRAMEWORK.md)
 - [Simplified Logging System](README_SIMPLIFIED_LOGGING.md)
+- [Plugin System](README_PLUGIN_SYSTEM.md)
 
 ## Configuration
 

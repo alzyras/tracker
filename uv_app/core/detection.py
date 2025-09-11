@@ -55,6 +55,25 @@ class FaceDetector:
         return frame[top:bottom, left:right]
 
 
+def get_body_roi(frame: np.ndarray, bbox: Tuple) -> np.ndarray:
+    """
+    Extract body region of interest from frame.
+    
+    Args:
+        frame: Input frame
+        bbox: Body bounding box (x1, y1, x2, y2)
+        
+    Returns:
+        Body ROI as numpy array
+    """
+    x1, y1, x2, y2 = bbox
+    # Make sure coordinates are within frame bounds
+    h, w = frame.shape[:2]
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    return frame[y1:y2, x1:x2]
+
+
 class BodyDetector:
     """Handles body detection and pose estimation."""
     

@@ -78,6 +78,13 @@ class PluginManager:
                                         person_name = person.name if person.name else f"Person ID {person.track_id}"
                                         logger.info(f"😊 {person_name}: {prev.get('emotion')} → {emotion} ({conf_val:.2f}) after {duration_s:.1f}s")
                                         self._last_emotions[person.track_id] = {"emotion": emotion, "confidence": conf_val, "changed_ms": current_time_ms}
+                        # Log SmolVLM activities
+                        elif plugin.name == "smolvlm_activity" and isinstance(result, dict):
+                            description = result.get("description")
+                            status = result.get("status")
+                            if description and status == "success":
+                                person_name = person.name if person.name else f"Person ID {person.track_id}"
+                                logger.info(f"Person ID {person.track_id} is doing: {description}")
                         # Respect config for generic plugin result logging
                         logger.log_plugin_result(plugin.name, person.track_id, result)
                     except Exception as e:

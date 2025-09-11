@@ -82,6 +82,19 @@ class PersonTracker:
                     logger.debug("✅ Person event logger plugin registered")
             except Exception as e:
                 logger.warning(f"⚠️  Could not register person event logger plugin: {e}")
+            
+            # Register the SmolVLM activity plugin if enabled
+            try:
+                if PLUGIN_CONFIG.get('smolvlm_plugin_enabled', False):
+                    smolvlm_cls = PLUGIN_REGISTRY.get("smolvlm_activity")
+                    if smolvlm_cls:
+                        api_url = PLUGIN_CONFIG.get('smolvlm_api_url', 'http://localhost:9000/describe')
+                        interval = PLUGIN_CONFIG.get('smolvlm_plugin_interval', 2000)
+                        smolvlm_plugin = smolvlm_cls(api_url=api_url, update_interval_ms=interval)
+                        self.plugin_manager.register_plugin(smolvlm_plugin)
+                        logger.info("✅ SmolVLM activity plugin registered")
+            except Exception as e:
+                logger.warning(f"⚠️  Could not register SmolVLM activity plugin: {e}")
         except ImportError as e:
             logger.warning(f"⚠️  Plugin system not available: {e}")
             self.plugin_manager = None
@@ -210,7 +223,16 @@ class PersonTracker:
         if self.recognizer and bodies:
             for person in self.recognizer.tracked_people:
                 if bodies:
-                    person.add_body_data(bodies[-1], poses[-1] if poses else None)
+                    # Extract body image ROI
+                    body_bbox = bodies[-1]
+                    from .detection import get_body_roi
+                    body_img = get_body_roi(frame, body_bbox)
+                    person.update_current_state(
+                        body_image=body_img,
+                        body_bbox=body_bbox
+                    )
+                    # Also add to stored body data
+                    person.add_body_data(body_bbox, poses[-1] if poses else None, body_img)
         
         return annotated_frame
     
